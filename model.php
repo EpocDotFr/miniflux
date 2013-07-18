@@ -22,7 +22,7 @@ use PicoFeed\Reader;
 use PicoFeed\Export;
 
 
-const DB_VERSION     = 10;
+const DB_VERSION     = 11;
 const HTTP_USERAGENT = 'Miniflux - http://miniflux.net';
 const LIMIT_ALL      = -1;
 

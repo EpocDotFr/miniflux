@@ -18,13 +18,29 @@ function before($value = null)
 }
 
 
+function before_action($name, $value = null)
+{
+    static $callbacks = array();
+
+    if (is_callable($value)) {
+
+        $callbacks[$name] = $value;
+    }
+    else if (isset($callbacks[$name]) && is_callable($callbacks[$name])) {
+
+        $callbacks[$name]($value);
+    }
+}
+
+
 function action($name, \Closure $callback)
 {
     $handler = isset($_GET['action']) ? $_GET['action'] : 'default';
 
     if ($handler === $name) {
 
-        before($handler);
+        before($name);
+        before_action($name);
         $callback();
     }
 }
@@ -50,7 +66,8 @@ function get_action($name, \Closure $callback)
 
 function notfound(\Closure $callback)
 {
-    before();
+    before('default');
+    before_action('default');
     $callback();
 }
 

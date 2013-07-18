@@ -17,26 +17,9 @@
         <header>
             <nav>
                 <a class="logo" href="?">mini<span>flux</span></a>
-                <ul>
-                    <li <?= isset($menu) && $menu === 'unread' ? 'class="active"' : '' ?>>
-                        <a href="?action=unread"><?= t('unread') ?> <span id="nav-counter"><?= isset($nb_unread_items) ? '('.$nb_unread_items.')' : '' ?></span></a>
-                    </li>
-                    <li <?= isset($menu) && $menu === 'bookmarks' ? 'class="active"' : '' ?>>
-                        <a href="?action=bookmarks"><?= t('bookmarks') ?></a>
-                    </li>
-                    <li <?= isset($menu) && $menu === 'history' ? 'class="active"' : '' ?>>
-                        <a href="?action=history"><?= t('history') ?></a>
-                    </li>
-                    <li <?= isset($menu) && $menu === 'feeds' ? 'class="active"' : '' ?>>
-                        <a href="?action=feeds"><?= t('subscriptions') ?></a>
-                    </li>
-                    <li <?= isset($menu) && $menu === 'config' ? 'class="active"' : '' ?>>
-                        <a href="?action=config"><?= t('preferences') ?></a>
-                    </li>
-                    <li>
-                        <a href="?action=logout"><?= t('logout') ?></a>
-                    </li>
-                </ul>
+                <?= Plugin::buildMenu(
+                    isset($menu) ? $menu : null,
+                    isset($nb_unread_items) ? $nb_unread_items : null) ?>
             </nav>
         </header>
         <section class="page">

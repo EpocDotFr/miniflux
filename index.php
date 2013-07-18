@@ -8,6 +8,7 @@ require 'vendor/PicoFarad/Request.php';
 require 'vendor/PicoFarad/Session.php';
 require 'vendor/PicoFarad/Router.php';
 require 'helpers.php';
+require 'plugin.php';
 
 use PicoFarad\Router;
 use PicoFarad\Response;
@@ -17,6 +18,7 @@ use PicoTools\Template;
 
 
 Session\open(dirname($_SERVER['PHP_SELF']));
+Plugin::loadPlugins();
 
 
 // Called before each action

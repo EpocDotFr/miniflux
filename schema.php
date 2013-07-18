@@ -3,6 +3,17 @@
 namespace Schema;
 
 
+function version_11($pdo)
+{
+    $pdo->exec("
+        CREATE TABLE plugin_options (
+            name TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ");
+}
+
+
 function version_10($pdo)
 {
     $pdo->exec('ALTER TABLE config ADD COLUMN theme TEXT DEFAULT "original"');
