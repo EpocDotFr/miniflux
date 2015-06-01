@@ -4,7 +4,7 @@
 define('HTTP_TIMEOUT', '20');
 
 // DATA_DIRECTORY => default is data (writable directory)
-define('DATA_DIRECTORY', 'data');
+define('DATA_DIRECTORY', __DIR__.'/data');
 
 // DB_FILENAME => default value is db.sqlite (default database filename)
 define('DB_FILENAME', 'db.sqlite');
@@ -12,11 +12,8 @@ define('DB_FILENAME', 'db.sqlite');
 // ENABLE_MULTIPLE_DB => default value is true (multiple users support)
 define('ENABLE_MULTIPLE_DB', true);
 
-// DEBUG => default is true (enable logging of PicoFeed)
-define('DEBUG', true);
-
 // DEBUG_FILENAME => default is data/debug.log
-define('DEBUG_FILENAME', DATA_DIRECTORY.DIRECTORY_SEPARATOR.'debug.log');
+define('DEBUG_FILENAME', DATA_DIRECTORY.'/debug.log');
 
 // THEME_DIRECTORY => default is themes
 define('THEME_DIRECTORY', 'themes');

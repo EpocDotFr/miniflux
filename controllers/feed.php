@@ -22,6 +22,7 @@ Router\get_action('edit-feed', function() {
     Response\html(Template\layout('edit_feed', array(
         'values' => Model\Feed\get($id),
         'errors' => array(),
+        'nb_unread_items' => Model\Item\count_by_status('unread'),
         'menu' => 'feeds',
         'title' => t('Edit subscription')
     )));
@@ -31,98 +32,27 @@ Router\get_action('edit-feed', function() {
 Router\post_action('edit-feed', function() {
 
     $values = Request\values();
+    $values += array('enabled' => 0, 'download_content' => 0, 'rtl' => 0, 'cloak_referrer' => 0);
+
     list($valid, $errors) = Model\Feed\validate_modification($values);
 
     if ($valid) {
-
         if (Model\Feed\update($values)) {
             Session\flash(t('Your subscription has been updated.'));
+            Response\redirect('?action=feeds');
         }
         else {
             Session\flash_error(t('Unable to edit your subscription.'));
         }
-
-        Response\redirect('?action=feeds');
     }
 
     Response\html(Template\layout('edit_feed', array(
         'values' => $values,
         'errors' => $errors,
+        'nb_unread_items' => Model\Item\count_by_status('unread'),
         'menu' => 'feeds',
         'title' => t('Edit subscription')
     )));
-});
-
-// Disable content grabber for a feed
-Router\get_action('disable-grabber-feed', function() {
-
-    $id = Request\int_param('feed_id');
-
-    if ($id && Model\Feed\disable_grabber($id)) {
-        Session\flash(t('The content grabber is disabled successfully.'));
-    }
-    else {
-        Session\flash_error(t('Unable to disable the content grabber for this subscription.'));
-    }
-
-    Response\redirect('?action=feeds');
-});
-
-// Enable content grabber for a feed
-Router\get_action('enable-grabber-feed', function() {
-
-    $id = Request\int_param('feed_id');
-
-    if ($id && Model\Feed\enable_grabber($id)) {
-        Session\flash(t('The content grabber is enabled successfully.'));
-    }
-    else {
-        Session\flash_error(t('Unable to activate the content grabber for this subscription.'));
-    }
-
-    Response\redirect('?action=feeds');
-});
-
-// Confirmation box to disable a feed
-Router\get_action('confirm-disable-feed', function() {
-
-    $id = Request\int_param('feed_id');
-
-    Response\html(Template\layout('confirm_disable_feed', array(
-        'feed' => Model\Feed\get($id),
-        'menu' => 'feeds',
-        'title' => t('Confirmation')
-    )));
-});
-
-// Disable a feed
-Router\get_action('disable-feed', function() {
-
-    $id = Request\int_param('feed_id');
-
-    if ($id && Model\Feed\disable($id)) {
-        Session\flash(t('This subscription has been disabled successfully.'));
-    }
-    else {
-        Session\flash_error(t('Unable to disable this subscription.'));
-    }
-
-    Response\redirect('?action=feeds');
-});
-
-// Enable a feed
-Router\get_action('enable-feed', function() {
-
-    $id = Request\int_param('feed_id');
-
-    if ($id && Model\Feed\enable($id)) {
-        Session\flash(t('This subscription has been enabled successfully.'));
-    }
-    else {
-        Session\flash_error(t('Unable to enable this subscription.'));
-    }
-
-    Response\redirect('?action=feeds');
 });
 
 // Confirmation box to remove a feed
@@ -132,6 +62,7 @@ Router\get_action('confirm-remove-feed', function() {
 
     Response\html(Template\layout('confirm_remove_feed', array(
         'feed' => Model\Feed\get($id),
+        'nb_unread_items' => Model\Item\count_by_status('unread'),
         'menu' => 'feeds',
         'title' => t('Confirmation')
     )));
@@ -155,8 +86,11 @@ Router\get_action('remove-feed', function() {
 // Refresh one feed and redirect to unread items
 Router\get_action('refresh-feed', function() {
 
-    Model\Feed\refresh(Request\int_param('feed_id'));
-    Response\redirect('?action=unread');
+    $feed_id = Request\int_param('feed_id');
+    $redirect = Request\param('redirect', 'unread');
+
+    Model\Feed\refresh($feed_id);
+    Response\redirect('?action='.$redirect.'&feed_id='.$feed_id);
 });
 
 // Ajax call to refresh one feed
@@ -173,32 +107,20 @@ Router\post_action('refresh-feed', function() {
 
 // Display all feeds
 Router\get_action('feeds', function() {
+    $nothing_to_read = Request\int_param('nothing_to_read');
+    $nb_unread_items = Model\Item\count_by_status('unread');
 
-    if (! Request\int_param('disable_empty_feeds_check')) {
-
-        $empty_feeds = Model\Feed\get_all_empty();
-
-        if (! empty($empty_feeds)) {
-
-            $listing = array();
-
-            foreach ($empty_feeds as &$feed) {
-                $listing[] = '"'.$feed['title'].'"';
-            }
-
-            $message = t(
-                'There is %d empty feeds, there is maybe an error: %s...',
-                count($empty_feeds),
-                implode(', ', array_slice($listing, 0, 5))
-            );
-
-            Session\flash_error($message);
-        }
+    // possible with remember me function
+    if ($nothing_to_read === 1 && $nb_unread_items > 0) {
+        Response\redirect('?action=unread');
     }
 
     Response\html(Template\layout('feeds', array(
+        'favicons' => Model\Feed\get_all_favicons(),
         'feeds' => Model\Feed\get_all_item_counts(),
-        'nothing_to_read' => Request\int_param('nothing_to_read'),
+        'nothing_to_read' => $nothing_to_read,
+        'nb_unread_items' => $nb_unread_items,
+        'nb_failed_feeds' => Model\Feed\count_failed_feeds(),
         'menu' => 'feeds',
         'title' => t('Subscriptions')
     )));
@@ -207,9 +129,12 @@ Router\get_action('feeds', function() {
 // Display form to add one feed
 Router\get_action('add', function() {
 
+    $values = array('download_content' => 0, 'rtl' => 0, 'cloak_referrer' => 0);
+
     Response\html(Template\layout('add', array(
-        'values' => array(),
+        'values' => $values + array('csrf' => Model\Config\generate_csrf()),
         'errors' => array(),
+        'nb_unread_items' => Model\Item\count_by_status('unread'),
         'menu' => 'feeds',
         'title' => t('New subscription')
     )));
@@ -220,6 +145,7 @@ Router\action('subscribe', function() {
 
     if (Request\is_post()) {
         $values = Request\values();
+        Model\Config\check_csrf_values($values);
         $url = isset($values['url']) ? $values['url'] : '';
     }
     else {
@@ -232,20 +158,58 @@ Router\action('subscribe', function() {
         }
     }
 
-    $values += array('download_content' => 0);
-    $url = trim($url);
-    $result = Model\Feed\create($url, $values['download_content']);
+    $values += array('url' => trim($url), 'download_content' => 0, 'rtl' => 0, 'cloak_referrer' => 0);
 
-    if ($result) {
+    try {
+        $feed_id = Model\Feed\create($values['url'], $values['download_content'], $values['rtl'], $values['cloak_referrer']);
+    }
+    catch (UnexpectedValueException $e) {
+        $error_message = t('This subscription already exists.');
+    }
+    catch (PicoFeed\Client\InvalidCertificateException $e) {
+        $error_message = t('Invalid SSL certificate.');
+    }
+    catch (PicoFeed\Client\InvalidUrlException $e) {
+        // picoFeed uses this exception for multiple reasons, but doesn't
+        // provide an exception code to distinguish what exactly happend here
+        $error_message = $e->getMessage();
+    }
+    catch (PicoFeed\Client\MaxRedirectException $e) {
+        $error_message = t('Maximum number of HTTP redirections exceeded.');
+    }
+    catch (PicoFeed\Client\MaxSizeException $e) {
+        $error_message = t('The content size exceeds to maximum allowed size.');
+    }
+    catch (PicoFeed\Client\TimeoutException $e) {
+        $error_message = t('Connection timeout.');
+    }
+    catch (PicoFeed\Parser\MalformedXmlException $e) {
+        $error_message = t('Feed is malformed.');
+    }
+    catch (PicoFeed\Reader\SubscriptionNotFoundException $e) {
+        $error_message = t('Unable to find a subscription.');
+    }
+    catch (PicoFeed\Reader\UnsupportedFeedFormatException $e) {
+        $error_message = t('Unable to detect the feed format.');
+    }
+
+    Model\Config\write_debug();
+
+    if (isset($feed_id) && $feed_id !== false) {
         Session\flash(t('Subscription added successfully.'));
-        Response\redirect('?action=feeds');
+        Response\redirect('?action=feed-items&feed_id='.$feed_id);
     }
     else {
-        Session\flash_error(t('Unable to find a subscription.'));
+        if (! isset($error_message)) {
+            $error_message = t('Error occured.');
+        }
+
+        Session\flash_error($error_message);
     }
 
     Response\html(Template\layout('add', array(
-        'values' => array('url' => $url),
+        'values' => $values + array('csrf' => Model\Config\generate_csrf()),
+        'nb_unread_items' => Model\Item\count_by_status('unread'),
         'menu' => 'feeds',
         'title' => t('Subscriptions')
     )));
@@ -263,6 +227,7 @@ Router\get_action('import', function() {
 
     Response\html(Template\layout('import', array(
         'errors' => array(),
+        'nb_unread_items' => Model\Item\count_by_status('unread'),
         'menu' => 'feeds',
         'title' => t('OPML Import')
     )));
@@ -274,7 +239,7 @@ Router\post_action('import', function() {
     if (Model\Feed\import_opml(Request\file_content('file'))) {
 
         Session\flash(t('Your feeds have been imported.'));
-        Response\redirect('?action=feeds&disable_empty_feeds_check=1');
+        Response\redirect('?action=feeds');
     }
     else {
 

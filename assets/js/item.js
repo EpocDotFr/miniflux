@@ -1,337 +1,387 @@
 Miniflux.Item = (function() {
 
-    function getItem(item_id)
-    {
-        var item = document.getElementById("item-" + item_id);
+    // timestamp of the latest item per feed ever seen
+    var latest_feeds_items = [];
 
-        if (! item) {
-            item = document.getElementById("current-item");
-            if (item.getAttribute("data-item-id") != item_id) item = false;
+    // indicator for new unread items
+    var unreadItems = false;
+
+    var nbUnreadItems = function() {
+        var navCounterElement = document.getElementById("nav-counter");
+
+        if (navCounterElement) {
+            counter = parseInt(navCounterElement.textContent, 10) || 0;
+            return counter;
         }
+    }();
 
-        return item;
+    var nbPageItems = function() {
+        var pageCounterElement = document.getElementById("page-counter");
+
+        if (pageCounterElement) {
+            counter = parseInt(pageCounterElement.textContent, 10) || 0;
+            return counter;
+        }
+    }();
+
+    function simulateMouseClick(element)
+    {
+        var event = document.createEvent("MouseEvents");
+        event.initEvent("mousedown", true, true);
+        element.dispatchEvent(event);
+
+        var event = document.createEvent("MouseEvents");
+        event.initEvent("mouseup", true, true);
+        element.dispatchEvent(event);
+
+        element.click();
+    }
+
+    function getItemID(item)
+    {
+        item_id = item.getAttribute("data-item-id");
+        return item_id;
     }
 
     function changeLabel(link)
     {
-        if (link && link.getAttribute("data-reverse-label")) {
+        if (link && link.hasAttribute("data-reverse-label")) {
             var content = link.innerHTML;
             link.innerHTML = link.getAttribute("data-reverse-label");
             link.setAttribute("data-reverse-label", content);
         }
     }
 
-    function changeBookmarkLabel(item_id)
+    function changeBookmarkLabel(item)
     {
-        var link = document.getElementById("bookmark-" + item_id);
+        var link = item.querySelector("a.bookmark");
         changeLabel(link);
     }
 
-    function showItemBookmarked(item_id)
+    function changeStatusLabel(item)
     {
-        if (! Miniflux.Nav.IsListing()) {
-
-            var link = document.getElementById("bookmark-" + item_id);
-            if (link) link.innerHTML = "★";
-        }
-        else {
-
-            var link = document.getElementById("show-" + item_id);
-
-            if (link) {
-                var icon = document.createElement("span");
-                icon.id = "bookmark-icon-" + item_id;
-                icon.appendChild(document.createTextNode("★ "));
-                link.parentNode.insertBefore(icon, link);
-            }
-
-            changeBookmarkLabel(item_id);
-        }
-    }
-
-    function showItemNotBookmarked(item_id)
-    {
-        if (! Miniflux.Nav.IsListing()) {
-
-            var link = document.getElementById("bookmark-" + item_id);
-            if (link) link.innerHTML = "☆";
-        }
-        else {
-
-            var icon = document.getElementById("bookmark-icon-" + item_id);
-            if (icon) icon.parentNode.removeChild(icon);
-
-            changeBookmarkLabel(item_id);
-        }
-    }
-
-    function changeStatusLabel(item_id)
-    {
-        var link = document.getElementById("status-" + item_id);
+        var link = item.querySelector("a.mark");
         changeLabel(link);
     }
 
-    function showItemAsRead(item_id)
+    function showItemAsRead(item)
     {
-        var item = getItem(item_id);
-
-        if (item) {
-            if (item.getAttribute("data-hide")) {
-                hideItem(item);
-            }
-            else {
-
-                item.setAttribute("data-item-status", "read");
-                changeStatusLabel(item_id);
-
-                // Show icon
-                var link = document.getElementById("show-" + item_id);
-
-                if (link) {
-                    link.className = "read";
-
-                    var icon = document.createElement("span");
-                    icon.id = "read-icon-" + item_id;
-                    icon.appendChild(document.createTextNode("✔ "));
-                    link.parentNode.insertBefore(icon, link);
-                }
-
-                // Change action
-                link = document.getElementById("status-" + item_id);
-                if (link) link.setAttribute("data-action", "mark-unread");
-            }
+        if (item.getAttribute("data-item-status") === 'read') {
+            return;
         }
+
+        if (item.getAttribute("data-hide")) {
+            hideItem(item);
+        }
+        else {
+            item.setAttribute("data-item-status", "read");
+            changeStatusLabel(item);
+
+            // Change action
+            var link = item.querySelector("a.mark");
+            if (link) link.setAttribute("data-action", "mark-unread");
+        }
+
+        nbUnreadItems--;
     }
 
-    function showItemAsUnread(item_id)
+    function showItemAsUnread(item)
     {
-        var item = getItem(item_id);
-
-        if (item) {
-            if (item.getAttribute("data-hide")) {
-                hideItem(item);
-            }
-            else {
-
-                item.setAttribute("data-item-status", "unread");
-                changeStatusLabel(item_id);
-
-                // Remove icon
-                var link = document.getElementById("show-" + item_id);
-                if (link) link.className = "";
-
-                var icon = document.getElementById("read-icon-" + item_id);
-                if (icon) icon.parentNode.removeChild(icon);
-
-                // Change action
-                link = document.getElementById("status-" + item_id);
-                if (link) link.setAttribute("data-action", "mark-read");
-            }
+        if (item.getAttribute("data-item-status") === 'unread') {
+            return;
         }
+
+        if (item.getAttribute("data-hide")) {
+            hideItem(item);
+        }
+        else {
+            item.setAttribute("data-item-status", "unread");
+            changeStatusLabel(item);
+
+            // Change action
+            var link = item.querySelector("a.mark");
+            if (link) link.setAttribute("data-action", "mark-read");
+        }
+
+        nbUnreadItems++;
     }
 
     function hideItem(item)
     {
-        if (Miniflux.Event.lastEventType != "mouse") {
+        if (Miniflux.Event.lastEventType !== "mouse") {
             Miniflux.Nav.SelectNextItem();
         }
 
         item.parentNode.removeChild(item);
-        var pageCounter = document.getElementById("page-counter");
+        nbPageItems--;
+    }
 
-        if (pageCounter) {
-            var source = item.getAttribute("data-item-page");
-            var counter = parseInt(pageCounter.textContent, 10) - 1;
-            var articles = document.getElementsByTagName("article");
-            
-            if (counter === 0 || articles.length === 0) {
-                window.location = location.href;
+    function updateCounters()
+    {
+        // redirect to unread if we're on a nothing to read page
+        if (window.location.href.indexOf('nothing_to_read=1') > -1 && nbUnreadItems > 0) {
+            window.location.href = '?action=unread';
+        } // reload to get a nothing to read page
+        else if (nbPageItems  === 0) {
+            window.location.reload();
+        }
+
+        var pageCounterElement = document.getElementById("page-counter");
+        if (pageCounterElement) pageCounterElement.textContent = nbPageItems || '';
+
+        var navCounterElement = document.getElementById("nav-counter");
+        navCounterElement.textContent = nbUnreadItems || '';
+
+        var pageHeadingElement = document.querySelector("div.page-header h2:first-of-type");
+        if (pageHeadingElement) {
+            pageHeading = pageHeadingElement.firstChild.nodeValue;
+        }
+        else {
+            // special handling while viewing an article.
+            // 1. The article does not have a page-header element
+            // 2. An article could be opened from any page and has the original
+            // page as data-item-page value
+            var itemHeading = document.querySelector("article.item h1:first-of-type");
+            if (itemHeading) {
+                document.title = itemHeading.textContent;
+                return;
             }
+        }
 
-            pageCounter.textContent = counter;
-
-            switch (source) {
-                case "unread":
-                    document.title = "Miniflux (" + counter + ")";
-                    document.getElementById("nav-counter").textContent = "(" + counter + ")";
-                    break;
-                case "feed-items":
-                    document.title = "(" + counter + ") " + pageCounter.parentNode.firstChild.nodeValue;
-                    break;
-                default:
-                    document.title = pageCounter.parentNode.textContent;
-            }
+        // pagetitle depends on current page
+        var sectionElement = document.querySelector("section.page");
+        switch (sectionElement.getAttribute("data-item-page")) {
+            case "unread":
+                document.title = "Miniflux (" + nbUnreadItems + ")";
+                break;
+            case "feed-items":
+                document.title = "(" + nbPageItems + ") " + pageHeading;
+                break;
+            default:
+                if (pageCounterElement) {
+                    document.title = pageHeading + " (" + nbPageItems + ")";
+                }
+                else {
+                    document.title = pageHeading;
+                }
+                break;
         }
     }
 
-    function markAsRead(item_id)
+    function markAsRead(item)
     {
+        var item_id = getItemID(item);
         var request = new XMLHttpRequest();
+
         request.onload = function() {
-            if (Miniflux.Nav.IsListing()) showItemAsRead(item_id);
+            if (Miniflux.Nav.IsListing()) {
+                showItemAsRead(item);
+                updateCounters();
+            }
         };
         request.open("POST", "?action=mark-item-read&id=" + item_id, true);
         request.send();
     }
 
-    function markAsUnread(item_id)
+    function markAsUnread(item)
     {
+        var item_id = getItemID(item);
         var request = new XMLHttpRequest();
+
         request.onload = function() {
-            if (Miniflux.Nav.IsListing()) showItemAsUnread(item_id);
+            if (Miniflux.Nav.IsListing()) {
+                showItemAsUnread(item);
+                updateCounters();
+            }
         };
         request.open("POST", "?action=mark-item-unread&id=" + item_id, true);
         request.send();
     }
 
-    function markAsRemoved(item_id)
+    function markAsRemoved(item)
     {
+        var item_id = getItemID(item);
         var request = new XMLHttpRequest();
+
         request.onload = function() {
-            if (Miniflux.Nav.IsListing()) hideItem(getItem(item_id));
+            if (Miniflux.Nav.IsListing()) {
+                hideItem(item);
+
+                if (item.getAttribute("data-item-status") === "unread") nbUnreadItems--;
+                updateCounters();
+            }
         };
         request.open("POST", "?action=mark-item-removed&id=" + item_id, true);
         request.send();
     }
 
-    function bookmark(item, value)
-    {
-        var item_id = item.getAttribute("data-item-id");
-        var request = new XMLHttpRequest();
-
-        request.onload = function() {
-
-            try {
-
-                var response = JSON.parse(this.responseText);
-
-                if (response.result) {
-
-                    item.setAttribute("data-item-bookmark", value);
-
-                    if (value) {
-                        showItemBookmarked(item_id);
-                    }
-                    else {
-                        showItemNotBookmarked(item_id);
-                    }
-                }
-            }
-            catch (e) {}
-        };
-
-        request.open("POST", "?action=bookmark&id=" + item_id + "&value=" + value, true);
-        request.send();
-    }
-
     return {
-        Get: getItem,
         MarkAsRead: markAsRead,
         MarkAsUnread: markAsUnread,
         MarkAsRemoved: markAsRemoved,
         SwitchBookmark: function(item) {
+            var item_id = getItemID(item);
+            var value = item.getAttribute("data-item-bookmark") === "1" ? "0" : "1";
+            var request = new XMLHttpRequest();
 
-            var bookmarked = item.getAttribute("data-item-bookmark");
+            request.onload = function() {
+                var sectionElement = document.querySelector("section.page");
 
-            if (bookmarked == "1") {
-                bookmark(item, 0);
-            }
-            else {
-                bookmark(item, 1);
-            }
+                if (Miniflux.Nav.IsListing() && sectionElement.getAttribute("data-item-page") === "bookmarks") {
+                    hideItem(item);
+                    updateCounters();
+                }
+                else {
+                    item.setAttribute("data-item-bookmark", value);
+
+                    if (Miniflux.Nav.IsListing()) {
+                        changeBookmarkLabel(item);
+                    }
+                    else {
+                        var link = item.querySelector("a.bookmark-icon");
+                        if (link && link.hasAttribute("data-reverse-title")) {
+                            var title = link.getAttribute("title");
+
+                            link.setAttribute("title", link.getAttribute("data-reverse-title"));
+                            link.setAttribute("data-reverse-title", title);
+                        }
+                    }
+                }
+            };
+
+            request.open("POST", "?action=bookmark&id=" + item_id + "&value=" + value, true);
+            request.send();
         },
         SwitchStatus: function(item) {
-
-            var item_id = item.getAttribute("data-item-id");
             var status = item.getAttribute("data-item-status");
 
-            if (status == "read") {
-                markAsUnread(item_id);
+            if (status === "read") {
+                markAsUnread(item);
             }
-            else if (status == "unread") {
-                markAsRead(item_id);
-            }
-        },
-        Show: function(item_id) {
-            var link = document.getElementById("show-" + item_id);
-            if (link) link.click();
-        },
-        OpenOriginal: function(item_id) {
-
-            var link = document.getElementById("original-" + item_id);
-
-            if (link) {
-                if (getItem(item_id).getAttribute("data-item-status") == "unread") markAsRead(item_id);
-                link.removeAttribute("data-action");
-                link.click();
+            else if (status === "unread") {
+                markAsRead(item);
             }
         },
-        DownloadContent: function() {
-
+        Show: function(item) {
+            var link = item.querySelector("a.show");
+            if (link) simulateMouseClick(link);
+        },
+        OpenOriginal: function(item) {
+            var link = item.querySelector("a.original");
+            if (link) simulateMouseClick(link)
+        },
+        DownloadContent: function(item) {
             var container = document.getElementById("download-item");
             if (! container) return;
 
-            var item_id = container.getAttribute("data-item-id");
-            var message = container.getAttribute("data-before-message");
-
-            var span = document.createElement("span");
-            span.appendChild(document.createTextNode("☀"));
-            span.className = "loading-icon";
-
-            container.innerHTML = "";
-            container.className = "downloading";
-            container.appendChild(span);
-            container.appendChild(document.createTextNode(" " + message));
-
-            var icon_interval = setInterval(Miniflux.App.BlinkIcon, 250);
+            container.innerHTML = " " + container.getAttribute("data-before-message");
+            container.className = "loading-icon";
 
             var request = new XMLHttpRequest();
-
             request.onload = function() {
 
                 var response = JSON.parse(request.responseText);
-                clearInterval(icon_interval);
+                container.className = "";
 
-                if (response.result) {
-
+                if (response['result']) {
                     var content = document.getElementById("item-content");
-                    if (content) content.innerHTML = response.content;
+                    if (content) content.innerHTML = response['content'];
 
-                    if (container) {
-                        var message = container.getAttribute("data-after-message");
-                        container.innerHTML = "";
-                        container.appendChild(document.createTextNode(" " + message));
-                    }
+                    container.innerHTML = container.getAttribute("data-after-message");
                 }
                 else {
-
-                    if (container) {
-                        var message = container.getAttribute("data-failure-message");
-                        container.innerHTML = "";
-                        container.appendChild(document.createTextNode(" " + message));
-                    }
+                    container.innerHTML = container.getAttribute("data-failure-message");
                 }
             };
 
+            var item_id = getItemID(item);
             request.open("POST", "?action=download-item&id=" + item_id, true);
             request.send();
         },
-        MarkListingAsRead: function(redirect) {
-            var articles = document.getElementsByTagName("article");
-            var listing = [];
-
-            for (var i = 0, ilen = articles.length; i < ilen; i++) {
-                listing.push(articles[i].getAttribute("data-item-id"));
-            }
-
+        MarkFeedAsRead: function(feed_id) {
             var request = new XMLHttpRequest();
 
             request.onload = function() {
-                window.location.href = redirect;
+                var articles = document.getElementsByTagName("article");
+
+                for (var i = 0, ilen = articles.length; i < ilen; i++) {
+                    showItemAsRead(articles[i]);
+                }
+
+                nbUnreadItems = this.responseText;
+                updateCounters();
             };
 
-            request.open("POST", "?action=mark-items-as-read", true);
-            request.send(JSON.stringify(listing));
+            request.open("POST", "?action=mark-feed-as-read&feed_id=" + feed_id, true);
+            request.send();
+        },
+        ToggleRTLMode: function() {
+            var tags = [
+                "#current-item h1",
+                "#item-content",
+                "#listing #current-item h2",
+                "#listing #current-item .preview"
+            ];
+
+            for (var i = 0; i < tags.length; i++) {
+                var tag = document.querySelector(tags[i]);
+
+                if (tag) {
+                    tag.dir = tag.dir == "" ? "rtl" : "";
+                }
+            }
+        },
+        hasNewUnread: function() {
+            return unreadItems;
+        },
+        CheckForUpdates: function() {
+           if (document.hidden && unreadItems) {
+                Miniflux.App.Log('We already have updates, no need to check again');
+                return;
+            }
+
+            var request = new XMLHttpRequest();
+            request.onload = function() {
+                var first_run = (latest_feeds_items.length === 0);
+                var current_unread = false;
+                var response = JSON.parse(this.responseText);
+
+                for (var feed_id in response['feeds']) {
+                    var current_feed = response['feeds'][feed_id];
+
+                    if (! latest_feeds_items.hasOwnProperty(feed_id) || current_feed.time > latest_feeds_items[feed_id]) {
+                        Miniflux.App.Log('feed ' + feed_id + ': New item(s)');
+                        latest_feeds_items[feed_id] = current_feed.time;
+
+                        if (current_feed.status === 'unread') {
+                            Miniflux.App.Log('feed ' + feed_id + ': New unread item(s)');
+                            current_unread = true;
+                        }
+                    }
+                }
+
+                Miniflux.App.Log('first_run: ' + first_run + ', current_unread: ' + current_unread + ', response.nbUnread: ' + response['nbUnread'] + ', nbUnreadItems: ' + nbUnreadItems);
+
+                if (! document.hidden && (response['nbUnread'] !== nbUnreadItems || unreadItems)) {
+                    Miniflux.App.Log('Counter changed! Updating unread counter.');
+                    unreadItems = false;
+                    nbUnreadItems = response['nbUnread'];
+                    updateCounters();
+                }
+                else if (document.hidden && ! first_run && current_unread) {
+                    Miniflux.App.Log('New Unread! Updating pagetitle.');
+                    unreadItems = true;
+                    document.title = "↻ " + document.title;
+                }
+                else {
+                    Miniflux.App.Log('No update.');
+                }
+
+                Miniflux.App.Log('unreadItems: ' + unreadItems);
+            };
+
+            request.open("POST", "?action=latest-feeds-items", true);
+            request.send();
         }
     };
 

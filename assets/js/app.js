@@ -1,39 +1,42 @@
 var Miniflux = {};
 
+/**
+* @define {boolean}
+*/
+var COMPILED = false;
+
 Miniflux.App = (function() {
 
     return {
-        // Blink the refresh icon to avoid to load an image and just for fun
-        BlinkIcon: function() {
-            var icons = document.querySelectorAll(".loading-icon");
-
-            [].forEach.call(icons, function(icon) {
-                icon.classList.toggle("loading-icon-blink");
-            });
+        Log: function(message) {
+            if (! COMPILED) {
+               console.log(message);
+            }
         },
         Run: function() {
             Miniflux.Event.ListenKeyboardEvents();
             Miniflux.Event.ListenMouseEvents();
+            Miniflux.Event.ListenVisibilityEvents();
+            this.FrontendUpdateCheck();
         },
-        MozillaAuth: function(action) {
-            navigator.id.watch({
-                onlogin: function(assertion) {
+        FrontendUpdateCheck: function() {
+            var request = new XMLHttpRequest();
+            request.onload = function() {
+                var response = JSON.parse(this.responseText);
 
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("POST", "?action=" + action + "&token=" + assertion, true);
-                    xhr.setRequestHeader("Connection", "close");
+                if (response['frontend_updatecheck_interval'] > 0) {
+                    Miniflux.App.Log('Frontend updatecheck interval in minutes: ' + response['frontend_updatecheck_interval']);
+                    Miniflux.Item.CheckForUpdates();
+                    setInterval(function(){ Miniflux.Item.CheckForUpdates(); }, response['frontend_updatecheck_interval']*60*1000);
+                }
+                else {
+                    Miniflux.App.Log('Frontend updatecheck disabled');
+                }
+            };
 
-                    xhr.onload = function () {
-                        window.location.href = this.responseText;
-                    };
-
-                    xhr.send("token=" + assertion);
-                },
-                onlogout: function() {}
-            });
-
-            navigator.id.request();
+            request.open("POST", "?action=get-config", true);
+            request.send(JSON.stringify(['frontend_updatecheck_interval']));
         }
-    }
+    };
 
 })();

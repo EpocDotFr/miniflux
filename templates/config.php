@@ -1,65 +1,81 @@
 <div class="page-header">
-    <h2><?= t('Preferences') ?></h2>
+    <h2><?= $title ?></h2>
+    <nav>
+        <ul>
+            <li class="active"><a href="?action=config"><?= t('general') ?></a></li>
+            <li><a href="?action=services"><?= t('external services') ?></a></li>
+            <li><a href="?action=api"><?= t('api') ?></a></li>
+            <li><a href="?action=database"><?= t('database') ?></a></li>
+            <li><a href="?action=help"><?= t('help') ?></a></li>
+            <li><a href="?action=about"><?= t('about') ?></a></li>
+        </ul>
+    </nav>
 </div>
 <section>
-<form method="post" action="?action=config" autocomplete="off">
+<form method="post" action="?action=config" autocomplete="off" id="config-form">
 
-    <?= Helper\form_label(t('Username'), 'username') ?>
-    <?= Helper\form_text('username', $values, $errors, array('required')) ?><br/>
+    <h3><?= t('Authentication') ?></h3>
+    <div class="options">
+        <?= Helper\form_hidden('csrf', $values) ?>
+        <?= Helper\form_label(t('Username'), 'username') ?>
+        <?= Helper\form_text('username', $values, $errors, array('required')) ?><br/>
 
-    <?= Helper\form_label(t('Password'), 'password') ?>
-    <?= Helper\form_password('password', $values, $errors) ?><br/>
+        <?= Helper\form_label(t('Password'), 'password') ?>
+        <?= Helper\form_password('password', $values, $errors) ?><br/>
 
-    <?= Helper\form_label(t('Confirmation'), 'confirmation') ?>
-    <?= Helper\form_password('confirmation', $values, $errors) ?><br/>
+        <?= Helper\form_label(t('Confirmation'), 'confirmation') ?>
+        <?= Helper\form_password('confirmation', $values, $errors) ?><br/>
+    </div>
 
-    <?= Helper\form_label(t('Timezone'), 'timezone') ?>
-    <?= Helper\form_select('timezone', $timezones, $values, $errors) ?><br/>
+    <h3><?= t('Application') ?></h3>
+    <div class="options">
+        <?= Helper\form_label(t('Timezone'), 'timezone') ?>
+        <?= Helper\form_select('timezone', $timezones, $values, $errors) ?><br/>
 
-    <?= Helper\form_label(t('Language'), 'language') ?>
-    <?= Helper\form_select('language', $languages, $values, $errors) ?><br/>
+        <?= Helper\form_label(t('Language'), 'language') ?>
+        <?= Helper\form_select('language', $languages, $values, $errors) ?><br/>
 
-    <?= Helper\form_label(t('Remove automatically read items'), 'autoflush') ?>
-    <?= Helper\form_select('autoflush', $autoflush_options, $values, $errors) ?><br/>
+        <?= Helper\form_label(t('Theme'), 'theme') ?>
+        <?= Helper\form_select('theme', $theme_options, $values, $errors) ?><br/>
 
-    <?= Helper\form_label(t('Items per page'), 'items_per_page') ?>
-    <?= Helper\form_select('items_per_page', $paging_options, $values, $errors) ?><br/>
+        <?php if (ENABLE_AUTO_UPDATE): ?>
+            <?= Helper\form_label(t('Auto-Update URL'), 'auto_update_url') ?>
+            <?= Helper\form_text('auto_update_url', $values, $errors, array('required')) ?><br/>
+        <?php endif ?>
 
-    <?= Helper\form_label(t('Default sorting order for items'), 'items_sorting_direction') ?>
-    <?= Helper\form_select('items_sorting_direction', $sorting_options, $values, $errors) ?><br/>
+        <?= Helper\form_checkbox('debug_mode', t('Enable debug mode'), 1, isset($values['debug_mode']) && $values['debug_mode'] == 1) ?><br/>
 
-    <?= Helper\form_label(t('Display items on lists'), 'items_display_mode') ?>
-    <?= Helper\form_select('items_display_mode', $display_mode, $values, $errors) ?><br/>
+        <?= Helper\form_checkbox('image_proxy', t('Enable image proxy'), 1, isset($values['image_proxy']) && $values['image_proxy'] == 1) ?>
+        <div class="form-help"><?= t('Avoid mixed content warnings with HTTPS') ?></div>
+    </div>
 
-    <?= Helper\form_label(t('When there is nothing to read, redirect me to this page'), 'redirect_nothing_to_read') ?>
-    <?= Helper\form_select('redirect_nothing_to_read', $redirect_nothing_to_read_options, $values, $errors) ?><br/>
+    <h3><?= t('Reading') ?></h3>
+    <div class="options">
+        <?= Helper\form_label(t('Remove automatically read items'), 'autoflush') ?>
+        <?= Helper\form_select('autoflush', $autoflush_read_options, $values, $errors) ?><br/>
 
-    <?= Helper\form_label(t('Theme'), 'theme') ?>
-    <?= Helper\form_select('theme', $theme_options, $values, $errors) ?><br/>
+        <?= Helper\form_label(t('Remove automatically unread items'), 'autoflush_unread') ?>
+        <?= Helper\form_select('autoflush_unread', $autoflush_unread_options, $values, $errors) ?><br/>
 
-    <?= Helper\form_checkbox('nocontent', t('Do not fetch the content of articles'), 1, isset($values['nocontent']) ? $values['nocontent'] : false) ?><br />
+        <?= Helper\form_label(t('Items per page'), 'items_per_page') ?>
+        <?= Helper\form_select('items_per_page', $paging_options, $values, $errors) ?><br/>
 
-    <?php if (ENABLE_AUTO_UPDATE): ?>
-        <?= Helper\form_label(t('Auto-Update URL'), 'auto_update_url') ?>
-        <?= Helper\form_text('auto_update_url', $values, $errors, array('required')) ?><br/>
-    <?php endif ?>
+        <?= Helper\form_label(t('Default sorting order for items'), 'items_sorting_direction') ?>
+        <?= Helper\form_select('items_sorting_direction', $sorting_options, $values, $errors) ?><br/>
 
-    <ul>
-        <li>
-            <?php if ($values['auth_google_token']): ?>
-                <?= t('Your Google Account is linked to Miniflux') ?>, <a href="?action=unlink-account-provider&amp;type=google"><?= t('remove') ?></a>
-            <?php else: ?>
-                <a href="?action=google-redirect-link"><?= t('Link Miniflux to my Google account') ?></a>
-            <?php endif ?>
-        </li>
-        <li>
-            <?php if ($values['auth_mozilla_token']): ?>
-                <?= t('Your Mozilla Persona Account is linked to Miniflux') ?>, <a href="?action=unlink-account-provider&amp;type=mozilla"><?= t('remove') ?></a>
-            <?php else: ?>
-                <a href="#" data-action="mozilla-link"><?= t('Link Miniflux to my Mozilla Persona account') ?></a>
-            <?php endif ?>
-        </li>
-    </ul>
+        <?= Helper\form_label(t('Display items on lists'), 'items_display_mode') ?>
+        <?= Helper\form_select('items_display_mode', $display_mode, $values, $errors) ?><br/>
+
+        <?= Helper\form_label(t('When there is nothing to read, redirect me to this page'), 'redirect_nothing_to_read') ?>
+        <?= Helper\form_select('redirect_nothing_to_read', $redirect_nothing_to_read_options, $values, $errors) ?><br/>
+
+        <?= Helper\form_label(t('Refresh interval in minutes for unread counter'), 'frontend_updatecheck_interval') ?>
+        <?= Helper\form_number('frontend_updatecheck_interval', $values, $errors, array('min="0"')) ?><br/>
+
+        <?= Helper\form_checkbox('original_marks_read', t('Original link marks article as read'), 1, isset($values['original_marks_read']) && $values['original_marks_read'] == 1) ?><br/>
+        <?= Helper\form_checkbox('nocontent', t('Do not fetch the content of articles'), 1, isset($values['nocontent']) && $values['nocontent'] == 1) ?><br/>
+        <?= Helper\form_checkbox('favicons', t('Download favicons'), 1, isset($values['favicons']) && $values['favicons'] == 1) ?><br/>
+    </div>
 
     <div class="form-actions">
         <input type="submit" value="<?= t('Save') ?>" class="btn btn-blue"/>
@@ -68,50 +84,13 @@
 </section>
 
 <div class="page-section">
-    <h2><?= t('More information') ?></h2>
+    <h2><?= t('Advanced') ?></h2>
 </div>
-<section>
-    <div class="alert alert-normal">
-        <h3 id="api"><?= t('API') ?></h3>
-        <ul>
-            <li>
-                <?= t('Bookmarklet:') ?>
-                <a href="javascript:location.href='<?= Helper\get_current_base_url() ?>?action=subscribe&amp;token=<?= urlencode($values['bookmarklet_token']) ?>&amp;url='+encodeURIComponent(location.href)"><?= t('Subscribe with Miniflux') ?></a> (<?= t('Drag and drop this link to your bookmarks') ?>)
-            <li>
-                <?= t('Bookmarks RSS Feed:') ?>
-                <a href="<?= Helper\get_current_base_url().'?action=bookmark-feed&amp;token='.urlencode($values['feed_token']) ?>" target="_blank"><?= Helper\get_current_base_url().'?action=bookmark-feed&amp;token='.urlencode($values['feed_token']) ?></a>
-            </li>
-            <li><?= t('API endpoint:') ?> <strong><?= Helper\get_current_base_url().'jsonrpc.php' ?></strong></li>
-            <li><?= t('API username:') ?> <strong><?= Helper\escape($values['username']) ?></strong></li>
-            <li><?= t('API token:') ?> <strong><?= Helper\escape($values['api_token']) ?></strong></li>
-            <li><a href="?action=generate-tokens"><?= t('Generate new tokens') ?></a></li>
-        </ul>
-    </div>
-    <div class="alert alert-normal">
-        <h3><?= t('Database') ?></h3>
-        <ul>
-            <li><?= t('Database size:') ?> <strong><?= Helper\format_bytes($db_size) ?></strong></li>
-            <li><a href="?action=optimize-db"><?= t('Optimize the database') ?></a> <?= t('(VACUUM command)') ?></li>
-            <li><a href="?action=download-db"><?= t('Download the entire database') ?></a> <?= t('(Gzip compressed Sqlite file)') ?></li>
-            <?php if (ENABLE_MULTIPLE_DB): ?>
-            <li>
-                <a href="?action=new-db"><?= t('Add a new database (new user)') ?></a></li>
-            </li>
-            <?php endif ?>
-        </ul>
-    </div>
-    <?= \PicoFarad\Template\load('keyboard_shortcuts') ?>
-    <div class="alert alert-normal">
-        <h3><?= t('About') ?></h3>
-        <ul>
-            <li><?= t('Miniflux version:') ?> <strong><?= APP_VERSION ?></strong></li>
-            <li><?= t('Official website:') ?> <a href="http://miniflux.net" rel="noreferer" target="_blank">http://miniflux.net</a></li>
-            <?php if (ENABLE_AUTO_UPDATE): ?>
-                <li><a href="?action=auto-update"><?= t('Update Miniflux') ?></a> (<?= t('Don\'t forget to backup your database') ?>)</li>
-            <?php endif ?>
-            <li><a href="?action=console"><?= t('Console') ?></a></li>
-        </ul>
-    </div>
+<section class="panel panel-danger">
+<ul>
+    <li><a href="?action=generate-tokens&amp;csrf=<?= $values['csrf'] ?>"><?= t('Generate new tokens') ?></a> (<?= t('Miniflux API') ?>, <?= t('Fever API') ?>, <?= t('Bookmarklet') ?>, <?= t('Bookmark RSS Feed') ?>)</li>
+<?php if (ENABLE_AUTO_UPDATE): ?>
+    <li><a href="?action=confirm-auto-update"><?= t('Update Miniflux') ?></a> (<?= t('Don\'t forget to backup your database') ?>)</li>
+<?php endif ?>
+</ul>
 </section>
-
-<script type="text/javascript" src="assets/js/persona.js" async></script>

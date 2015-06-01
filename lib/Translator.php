@@ -10,7 +10,7 @@ namespace Translator {
         $args = \func_get_args();
 
         \array_shift($args);
-        \array_unshift($args, get($identifier, $identifier));
+        \array_unshift($args, get($identifier, $identifier, $args));
 
         foreach ($args as &$arg) {
             $arg = htmlspecialchars($arg, ENT_QUOTES, 'UTF-8', false);
@@ -72,24 +72,54 @@ namespace Translator {
 
     function datetime($format, $timestamp)
     {
+        if (strtoupper(substr(PHP_OS, 0, 3)) == 'WIN') {
+            $format = preg_replace('#(?<!%)((?:%%)*)%e#', '\1%#d', $format);
+            $format = preg_replace('#(?<!%)((?:%%)*)%k#', '\1%#H', $format);
+        }
+
         return strftime($format, (int) $timestamp);
     }
 
 
-    function get($identifier, $default = '')
+    function get($identifier, $default = '', array $values = array())
     {
         $locales = container();
+        $translation = $default;
 
         if (isset($locales[$identifier])) {
-
-            return $locales[$identifier];
+            if (is_array($locales[$identifier])) {
+                $translation = plural($identifier, $default, $values);
+            }
+            else {
+                $translation = $locales[$identifier];
+            }
         }
-        else {
 
-            return $default;
-        }
+        return $translation;
     }
 
+
+    function plural($identifier, $default, array $values)
+    {
+        $locales = container();
+        $plural = 0;
+
+        foreach ($values as $value) {
+            if (is_numeric($value)) {
+                $value = abs($value);
+                $plural = (int) $locales['plural']($value);
+                break;
+            }
+        }
+
+        for ($i = $plural; $i >= 0; $i--) {
+            if (isset($locales[$identifier][$i])) {
+                return $locales[$identifier][$i];
+            }
+        }
+
+        return $default;
+    }
 
     function load($language)
     {
@@ -103,9 +133,7 @@ namespace Translator {
             $dir = new \DirectoryIterator($path);
 
             foreach ($dir as $fileinfo) {
-
                 if (strpos($fileinfo->getFilename(), '.php') !== false) {
-
                     $locales = array_merge($locales, include $fileinfo->getPathname());
                 }
             }
@@ -120,7 +148,6 @@ namespace Translator {
         static $values = array();
 
         if ($locales !== null) {
-
             $values = $locales;
         }
 

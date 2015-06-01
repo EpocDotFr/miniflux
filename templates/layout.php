@@ -1,8 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html
+    <?php if (Model\Config\is_language_rtl()): ?>
+        dir="rtl"
+    <?php endif ?>
+>
     <head>
         <meta charset="utf-8">
-        <title><?= isset($title) ? Helper\escape($title) : 'Miniflux' ?></title>
+        <title><?= isset($title) ? Helper\escape($title) : t('Miniflux') ?></title>
 
         <meta name="viewport" content="width=device-width">
         <meta name="mobile-web-app-capable" content="yes">
@@ -20,10 +24,10 @@
     <body>
         <header>
             <nav>
-                <a class="logo" href="?">mini<span>flux</span></a>
+                <a class="logo" href="?"><?= tne('mini%sflux%s','<span>','</span>') ?></a>
                 <ul>
                     <li <?= isset($menu) && $menu === 'unread' ? 'class="active"' : '' ?>>
-                        <a href="?action=unread"><?= t('unread') ?> <span id="nav-counter"><?= isset($nb_unread_items) ? '('.$nb_unread_items.')' : '' ?></span></a>
+                        <a href="?action=unread"><?= t('unread') ?><span id="nav-counter"><?= empty($nb_unread_items) ? '' : $nb_unread_items ?></span></a>
                     </li>
                     <li class="<?= isset($menu) && $menu === 'bookmarks' ? 'active hide-mobile' : 'hide-mobile' ?>">
                         <a href="?action=bookmarks"><?= t('bookmarks') ?></a>
@@ -41,12 +45,12 @@
                         <a href="?action=logout"><?= t('logout') ?></a>
                     </li>
                     <li class="<?= isset($menu) && $menu === 'more' ? 'active hide-desktop' : 'hide-desktop' ?>">
-                        <a href="?action=more"><?= t('∨ menu') ?></a>
+                        <a href="?action=more">∨ <?= t('menu') ?></a>
                     </li>
                 </ul>
             </nav>
         </header>
-        <section class="page">
+        <section class="page" data-item-page="<?= $menu ?>">
             <?= Helper\flash('<div class="alert alert-success">%s</div>') ?>
             <?= Helper\flash_error('<div class="alert alert-error">%s</div>') ?>
             <?= $content_for_layout ?>

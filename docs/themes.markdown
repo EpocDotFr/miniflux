@@ -11,7 +11,9 @@ A theme doesn't change the behaviour of the application but only the page layout
 
 The first step is to create a new directory structure for your theme:
 
-    mkdir -p themes/mysuperskin/{css,img,fonts}
+```bash
+mkdir -p themes/mysuperskin/{css,img,fonts}
+```
 
 The name of your theme should be only alphanumeric.
 
@@ -21,26 +23,24 @@ There is the following directories inside your theme:
 - `img`: Theme images (not required)
 - `fonts`: Theme fonts (not required)
 
-Miniflux use responsive design, so it's better if your theme can handle mobile devices as well.
-
-If you write a very cool theme for Miniflux, **send me your theme to be available in the default installation!**
-It would be awesome for everybody :)
+Miniflux use responsive design, so it's better if your theme can handle mobile devices.
 
 List of themes
 --------------
 
-Original theme by Frederic Guillot
+Since the version 1.1.7, themes are not anymore distributed in the default installation.
 
-Other themes included in the default installation:
+You can download them from [the official Miniflux repositories](https://github.com/miniflux):
 
-- Bootstrap Light by Silvus
-- Bootswatch Cyborg by Silvus
-- Cards by Augustin Lacour
-- Copper by Nicolas Dewaele
-- Green by Maxime (aka EpocDotFr)
-- Hello by Mirado (https://github.com/meradoou)
-- Midnight by Luca Marra
-- NoStyle by Frederic Guillot
-- Still by Franklin
+- [Bootstrap Light by Silvus](https://github.com/miniflux/theme-bootstrap-light)
+- [Bootswatch Cyborg by Silvus](https://github.com/miniflux/theme-bootswatch-cyborg)
+- [Cards by Augustin Lacour](https://github.com/miniflux/theme-cards)
+- [Copper by Nicolas Dewaele](https://github.com/miniflux/theme-copper)
+- [Green by Maxime](https://github.com/miniflux/theme-green)
+- [Hello by Mirado ZAKASOA](https://github.com/meradoou/hello)
+- [Hello Flat by Mirado ZAKASOA](https://github.com/meradoou/hello/tree/flat)
+- [Midnight by Luca Marra](https://github.com/miniflux/theme-midnight)
+- [NoStyle by Frederic Guillot](https://github.com/miniflux/theme-nostyle)
+- [Still by Franklin Delehelle](https://github.com/miniflux/theme-still)
 
-**PS: Those themes are maintained and tested by their authors.**
+**PS: Those themes are maintained and tested by their respective authors.**

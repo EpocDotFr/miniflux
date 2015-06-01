@@ -16,11 +16,12 @@ body {
 
 body {
     margin: 0 auto;
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-bottom: 30px;
     max-width: 780px;
     color: #333;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
 }
 
@@ -64,7 +65,7 @@ blockquote {
     margin-left: 20px;
     margin-top: 20px;
     margin-bottom: 20px;
-    color: #777;
+    color: #888;
     line-height: 1.4em;
     font-family: Georgia, serif;
 }
@@ -90,6 +91,8 @@ table {
     width: 100%;
     border-collapse: collapse;
     border-spacing: 0;
+    /* workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=975632 */
+    table-layout: fixed;
 }
 
 table caption {
@@ -113,10 +116,10 @@ th {
 }
 
 pre, code {
-    background: #f0f0f0;
+    background: #fcfcfc;
     border: 1px solid #ccc;
     font-family: monospace;
-    color: brown;
+    color: #666;
     line-height: 1.3em;
     border-radius: 5px;
 }
@@ -142,6 +145,14 @@ form {
     border-left: 2px dotted #ddd;
 }
 
+form h3 {
+    font-weight: bold;
+}
+
+form h3:first-child {
+    margin-top: 0;
+}
+
 label {
     cursor: pointer;
     display: block;
@@ -149,11 +160,13 @@ label {
 
 input[type="checkbox"] {
     border: 1px solid #ccc;
+    margin-right: 0.5em;
 }
 
 input[type="email"],
 input[type="tel"],
 input[type="password"],
+input[type="number"],
 input[type="text"] {
     border: 1px solid #ccc;
     padding: 3px;
@@ -169,12 +182,17 @@ input[type="text"] {
 input[type="email"]:focus,
 input[type="tel"]:focus,
 input[type="password"]:focus,
+input[type="number"]:focus,
 input[type="text"]:focus,
 textarea:focus {
     color: #000;
     border-color: rgba(82, 168, 236, 0.8);
     outline: 0;
     box-shadow: 0 0 8px rgba(82, 168, 236, 0.6);
+}
+
+input[type="number"] {
+    width: 40px;
 }
 
 textarea {
@@ -205,7 +223,7 @@ select {
 }
 
 .form-actions {
-    margin-top: 40px;
+    margin-top: 30px;
 }
 
 input.form-error,
@@ -230,13 +248,14 @@ textarea.form-error {
 }
 
 /* alerts */
-.alert {
+.alert, .panel {
     padding: 8px 35px 8px 14px;
     margin-bottom: 20px;
     color: #c09853;
     background-color: #fcf8e3;
     border: 1px solid #fbeed5;
     border-radius: 4px;
+    overflow: auto;
 }
 
 .alert-success {
@@ -245,7 +264,7 @@ textarea.form-error {
     border-color: #d6e9c6;
 }
 
-.alert-error {
+.alert-error, .panel-danger {
     color: #b94a48;
     background-color: #f2dede;
     border-color: #eed3d7;
@@ -257,12 +276,15 @@ textarea.form-error {
     border-color: #bce8f1;
 }
 
-.alert-normal {
+.alert-normal, .panel-default {
     color: #333;
     background-color: #f0f0f0;
     border-color: #ddd;
 }
 
+.alert-error a, .panel-danger a {
+    color: #b94a48;
+}
 
 /* buttons */
 .btn {
@@ -286,7 +308,7 @@ a.btn {
 }
 
 .btn-red {
-    border-color: #b0281a;;
+    border-color: #b0281a;
     background: #d14836;
     color: #fff;
 }
@@ -308,6 +330,58 @@ a.btn-red:hover,
 .btn-blue:focus {
     border-color: #2f5bb7;
     background: #357ae8;
+}
+
+/* icons */
+article[data-item-status="read"] .read-icon:before {
+    content: "✔";
+}
+
+article[data-item-bookmark="1"] .bookmark-icon:before {
+    content: "★";
+}
+
+/* not bookmarked icon only in article view */
+article[data-item-bookmark="0"] .item-infos .bookmark-icon:before {
+    content: "☆";
+}
+
+/* counter brackets */
+span#nav-counter:not(:empty):before, span#page-counter:not(:empty):before {
+    content: " (";
+}
+
+span.items-count:before {
+    content: "(";
+}
+
+span#nav-counter:not(:empty):after, span#page-counter:not(:empty):after, span.items-count:after {
+    content: ")";
+}
+
+@keyframes blinker {
+    0% { opacity: 1.0; }
+    50% { opacity: 0.0; }
+    100% { opacity: 1.0; }
+}
+
+/* Chrome, Safari, Opera */
+@-webkit-keyframes blinker {
+    0% { opacity: 1.0; }
+    50% { opacity: 0.0; }
+    100% { opacity: 1.0; }
+}
+
+.loading-icon:before {
+    content: "☀";
+    animation-name: blinker;
+    -webkit-animation-name: blinker; /* Chrome, Safari, Opera */
+    animation-duration: 500ms;
+    -webkit-animation-duration: 500ms; /* Chrome, Safari, Opera */
+    animation-timing-function: ease-in-out;
+    -webkit-animation-timing-function: ease-in-out; /* Chrome, Safari, Opera */
+    animation-iteration-count: infinite;
+    -webkit-animation-iteration-count: infinite; /* Chrome, Safari, Opera */
 }
 
 /* header */
@@ -334,6 +408,7 @@ header a {
 nav .active a {
     color: #333;
     font-weight: bold;
+    text-decoration: none;
 }
 
 .logo {
@@ -372,7 +447,6 @@ nav .active a {
     font-size: 90%;
     display: inline;
     padding-right: 5px;
-    border-right: 1px dotted #ccc;
 }
 
 .page-header li:last-child {
@@ -388,11 +462,6 @@ nav .active a {
     padding-top: 30px;
 }
 
-.feed-disabled,
-.feed-disabled a {
-    color: #aaa;
-}
-
 .feed-last-checked {
     color: brown;
     font-size: 0.7em;
@@ -400,17 +469,31 @@ nav .active a {
 }
 
 .feed-parsing-error {
+    visibility: hidden;
+}
+
+/* items listing */
+.items article[data-feed-error] .feed-parsing-error {
+    visibility: visible;
     color: #000;
     font-size: 0.7em;
     font-weight: normal;
 }
 
-/* items listing */
 .items article {
     border: 1px dotted #ddd;
     margin-bottom: 20px;
     padding: 5px;
     background-color: #fff;
+}
+
+.items article[data-feed-error] {
+    background-color: #fcf8e3;
+    border-color: #fcf8e3;
+}
+
+.items article[data-feed-disabled] * {
+    color: #aaa;
 }
 
 .items h2 {
@@ -453,8 +536,27 @@ nav .active a {
     color: #555;
 }
 
-.items a.read {
+.items article[data-item-status="read"] h2 a {
     color: #666;
+}
+
+/* item preview full-content */
+.preview-full-content {
+    overflow: auto;
+    margin-bottom: 10px;
+    color: #666;
+}
+
+.preview-full-content p {
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.preview-full-content img {
+    max-width: 100%;
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
 /* item */
@@ -486,6 +588,10 @@ nav .active a {
 
 .item ul {
     margin-left: 25px;
+}
+
+#item-content {
+    font-size: 1.1em;
 }
 
 #item-content[dir="rtl"] blockquote {
@@ -544,6 +650,7 @@ nav .active a {
     width: 50%;
     display: block;
     float: left;
+    text-align: left;
 }
 
 .nav-right {
@@ -551,6 +658,14 @@ nav .active a {
     margin-left: 50%;
     width: 50%;
     display: block;
+}
+
+.nav-left:before {
+    content: "« ";
+}
+
+.nav-right:after {
+    content: " »";
 }
 
 ul.item-menu,
@@ -588,13 +703,7 @@ ul.item-infos {
     margin-bottom: 20px;
 }
 
-span.downloading img {
-    display: inline;
-    margin: 0;
-    padding: 0;
-}
-
-.downloading {
+#download-item {
     color: #000;
 }
 
@@ -605,15 +714,24 @@ span.downloading img {
     text-align: center;
 }
 
-a.bookmark-icon {
+a.icon {
     color: #333;
     text-decoration: none;
+}
+
+a.icon:focus,
+a.icon:hover {
+    color: #000;
 }
 
 #item-content-enclosure {
     border-bottom: 1px dashed #ccc;
     margin-bottom: 20px;
     padding-bottom: 10px;
+}
+
+.items article .favicon {
+    height: 16px;
 }
 
 /* other pages */
@@ -640,18 +758,67 @@ iframe {
     color: #333;
 }
 
-.loading-icon {
-    color: #000;
-    opacity: 1;
-    transition: opacity 0.2s ease-in-out;
+#login {
+    width: 350px;
+    margin: 0 auto;
+    margin-top: 15%;
 }
 
-.loading-icon-blink {
-    opacity: 0;
+#login form {
+    border: none;
+    margin-bottom: 45px;
 }
 
-.login-form {
-    margin-bottom: 20px;
+#database-selector h4 {
+    margin: 0;
+    margin-bottom: 10px;
+    padding: 0;
+    font-weight: normal;
+}
+
+.bookmarklet {
+    font-size: 0.9em;
+    font-weight: bold;
+    line-height: 30px;
+    padding: 4px;
+    text-decoration: none;
+    color: #333;
+    background: #fff;
+    border: 1px dotted #ccc;
+    border-radius: 4px;
+    cursor: move;
+}
+
+.bookmarklet:focus,
+.bookmarklet:hover {
+    color: #339966;
+}
+
+#config-form {
+    border-left: none;
+    padding: 0;
+}
+
+#config-form h3 {
+    border-bottom: 1px dotted #ccc;
+}
+
+.options {
+    border-left: 3px dotted #eee;
+    padding-left: 20px;
+}
+
+html[dir="rtl"] form,
+html[dir="rtl"] .options,
+html[dir="rtl"] ul.item-infos li {
+    border: none;
+}
+
+html[dir="rtl"] .nav-right:after,
+html[dir="rtl"] .nav-left:before,
+html[dir="rtl"] span.items-count:after,
+html[dir="rtl"] span.items-count:before {
+    content: "";
 }
 
 /* desktop design */
@@ -671,8 +838,6 @@ iframe {
     }
 
     body {
-        margin-left: 5px;
-        margin-right: 5px;
         max-width: 480px;
     }
 

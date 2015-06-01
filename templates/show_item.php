@@ -1,5 +1,5 @@
 <?php if (empty($item)): ?>
-    <p class="alert alert-info"><?= t('Item not found') ?></p>
+    <p class="alert alert-error"><?= t('Item not found') ?></p>
 <?php else: ?>
     <article
         class="item"
@@ -7,56 +7,41 @@
         data-item-id="<?= $item['id'] ?>"
         data-item-status="<?= $item['status'] ?>"
         data-item-bookmark="<?= $item['bookmark'] ?>"
-        data-item-page="<?= $menu ?>"
     >
 
         <?php if (isset($item_nav)): ?>
-        <nav class="top hide-desktop">
+        <nav class="top">
             <span class="nav-left">
                 <?php if ($item_nav['previous']): ?>
-                    <a href="?action=show&amp;menu=<?= $menu ?>&amp;id=<?= $item_nav['previous']['id'] ?>" id="previous-item" title="<?= Helper\escape($item_nav['previous']['title']) ?>">« <?= t('Previous') ?></a>
+                    <a href="?action=show&amp;menu=<?= $menu ?>&amp;id=<?= $item_nav['previous']['id'] ?>" id="previous-item" title="<?= Helper\escape($item_nav['previous']['title']) ?>"><?= t('Previous') ?></a>
                 <?php else: ?>
-                    « <?= t('Previous') ?>
+                    <?= t('Previous') ?>
                 <?php endif ?>
             </span>
 
             <span class="nav-right">
                 <?php if ($item_nav['next']): ?>
-                    <a href="?action=show&amp;menu=<?= $menu ?>&amp;id=<?= $item_nav['next']['id'] ?>" id="next-item" title="<?= Helper\escape($item_nav['next']['title']) ?>"><?= t('Next') ?> »</a>
+                    <a href="?action=show&amp;menu=<?= $menu ?>&amp;id=<?= $item_nav['next']['id'] ?>" id="next-item" title="<?= Helper\escape($item_nav['next']['title']) ?>"><?= t('Next') ?></a>
                 <?php else: ?>
-                    <?= t('Next') ?> »
+                    <?= t('Next') ?>
                 <?php endif ?>
             </span>
         </nav>
         <?php endif ?>
 
-        <h1 <?= Helper\isRTL($item['language']) ? 'dir="rtl"' : '' ?>>
-            <a href="<?= $item['url'] ?>" rel="noreferrer" target="_blank" id="original-<?= $item['id'] ?>">
-                <?= Helper\escape($item['title']) ?>
-            </a>
+        <h1 <?= Helper\is_rtl($item + array('rtl' => $feed['rtl'])) ? 'dir="rtl"' : 'dir="ltr"' ?>>
+            <a href="<?= $item['url'] ?>" rel="noreferrer" target="_blank" class="original"><?= Helper\escape($item['title']) ?></a>
         </h1>
 
         <ul class="item-infos">
             <li>
-            <?php if ($item['bookmark']): ?>
                 <a
-                    id="bookmark-<?=$item['id'] ?>"
-                    href="?action=bookmark&amp;value=0&amp;id=<?= $item['id'] ?>&amp;source=show&amp;menu=<?= $menu ?>"
-                    title="<?= t('remove bookmark') ?>"
-                    class="bookmark-icon"
+                    class="bookmark-icon icon"
+                    href="?action=bookmark&amp;value=<?= (int)!$item['bookmark'] ?>&amp;id=<?= $item['id'] ?>&amp;source=show&amp;menu=<?= $menu ?>"
+                    title="<?= ($item['bookmark']) ? t('remove bookmark') : t('bookmark') ?>"
+                    data-reverse-title="<?= ($item['bookmark']) ? t('bookmark') :t('remove bookmark') ?>"
                     data-action="bookmark"
-                    data-item-id="<?= $item['id'] ?>"
-                >★</a>
-            <?php else: ?>
-                <a
-                    id="bookmark-<?=$item['id'] ?>"
-                    href="?action=bookmark&amp;value=1&amp;id=<?= $item['id'] ?>&amp;source=show&amp;menu=<?= $menu ?>"
-                    title="<?= t('bookmark') ?>"
-                    class="bookmark-icon"
-                    data-action="bookmark"
-                    data-item-id="<?= $item['id'] ?>"
-                >☆</a>
-            <?php endif ?>
+                ></a>
             </li>
             <li>
                 <a href="?action=feed-items&amp;feed_id=<?= $feed['id'] ?>"><?= Helper\escape($feed['title']) ?></a>
@@ -69,42 +54,36 @@
                 <a href="<?= $item['enclosure'] ?>" rel="noreferrer" target="_blank"><?= t('attachment') ?></a>
             </li>
             <?php endif ?>
-            <li>
-                <a
-                    href="?action=mark-item-unread&amp;id=<?= $item['id'] ?>&amp;redirect=unread"
-                >
-                    <?= t('mark as unread') ?>
-                </a>
-            </li>
             <li class="hide-mobile">
                 <span id="download-item"
-                      data-item-id="<?= $item['id'] ?>"
                       data-failure-message="<?= t('unable to fetch content') ?>"
                       data-before-message="<?= t('in progress...') ?>"
                       data-after-message="<?= t('content downloaded') ?>">
-                    <a href="#" data-action="download-item">
-                        <?= t('download content') ?>
-                    </a>
+                    <a href="#" data-action="download-item"><?= t('download content') ?></a>
                 </span>
             </li>
         </ul>
 
-        <div id="item-content" <?= Helper\isRTL($item['language']) ? 'dir="rtl"' : '' ?>>
+        <div id="item-content" <?= Helper\is_rtl($item + array('rtl' => $feed['rtl']))  ? 'dir="rtl"' : 'dir="ltr"' ?>>
 
             <?php if ($item['enclosure']): ?>
-            <div id="item-content-enclosure">
                 <?php if (strpos($item['enclosure_type'], 'audio') !== false): ?>
+                <div id="item-content-enclosure">
                     <audio controls>
                         <source src="<?= $item['enclosure'] ?>" type="<?= $item['enclosure_type'] ?>">
                     </audio>
+                </div>
                 <?php elseif (strpos($item['enclosure_type'], 'video') !== false): ?>
+                <div id="item-content-enclosure">
                     <video controls>
                         <source src="<?= $item['enclosure'] ?>" type="<?= $item['enclosure_type'] ?>">
                     </video>
-                <?php elseif (strpos($item['enclosure_type'], 'image') !== false): ?>
+                </div>
+                <?php elseif (strpos($item['enclosure_type'], 'image') !== false && $item['content'] === ''): ?>
+                <div id="item-content-enclosure">
                     <img src="<?= $item['enclosure'] ?>" alt="enclosure"/>
+                </div>
                 <?php endif ?>
-            </div>
             <?php endif ?>
 
             <?= $item['content'] ?>
@@ -114,17 +93,17 @@
         <nav class="bottom">
             <span class="nav-left">
                 <?php if ($item_nav['previous']): ?>
-                    <a href="?action=show&amp;menu=<?= $menu ?>&amp;id=<?= $item_nav['previous']['id'] ?>" id="previous-item" title="<?= Helper\escape($item_nav['previous']['title']) ?>">« <?= t('Previous') ?></a>
+                    <a href="?action=show&amp;menu=<?= $menu ?>&amp;id=<?= $item_nav['previous']['id'] ?>" id="previous-item" title="<?= Helper\escape($item_nav['previous']['title']) ?>"><?= t('Previous') ?></a>
                 <?php else: ?>
-                    « <?= t('Previous') ?>
+                    <?= t('Previous') ?>
                 <?php endif ?>
             </span>
 
             <span class="nav-right">
                 <?php if ($item_nav['next']): ?>
-                    <a href="?action=show&amp;menu=<?= $menu ?>&amp;id=<?= $item_nav['next']['id'] ?>" id="next-item" title="<?= Helper\escape($item_nav['next']['title']) ?>"><?= t('Next') ?> »</a>
+                    <a href="?action=show&amp;menu=<?= $menu ?>&amp;id=<?= $item_nav['next']['id'] ?>" id="next-item" title="<?= Helper\escape($item_nav['next']['title']) ?>"><?= t('Next') ?></a>
                 <?php else: ?>
-                    <?= t('Next') ?> »
+                    <?= t('Next') ?>
                 <?php endif ?>
             </span>
         </nav>

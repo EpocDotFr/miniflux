@@ -1,6 +1,6 @@
 <?php
 
-// PHP 5.3.7 minimum
+// PHP 5.3.3 minimum
 if (version_compare(PHP_VERSION, '5.3.3', '<')) {
     die('This software require PHP 5.3.3 minimum');
 }
@@ -42,9 +42,14 @@ if (! extension_loaded('pdo_sqlite')) {
     die('PHP extension required: pdo_sqlite');
 }
 
-// Check extension: mbstring
+// Check extension: mbstring (simpleValidator)
 if (! extension_loaded('mbstring')) {
     die('PHP extension required: mbstring');
+}
+
+// Check extension: iconv (picoFeed)
+if (! extension_loaded('iconv')) {
+    die('PHP extension required: iconv');
 }
 
 // Check for curl
@@ -59,5 +64,5 @@ if (! is_writable(DATA_DIRECTORY)) {
 
 // Include password_compat for PHP < 5.5
 if (version_compare(PHP_VERSION, '5.5.0', '<')) {
-    require __DIR__.'/vendor/password.php';
+    require __DIR__.'/lib/password.php';
 }

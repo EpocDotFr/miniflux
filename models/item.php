@@ -2,16 +2,14 @@
 
 namespace Model\Item;
 
+use Model\Service;
 use Model\Config;
 use PicoDb\Database;
-use PicoFeed\Logging;
-use PicoFeed\Grabber;
-use PicoFeed\Client;
-use PicoFeed\Filter;
-use Readability;
+use PicoFeed\Logging\Logger;
+use PicoFeed\Scraper\Scraper;
 
 // Get all items without filtering
-function get_everything()
+function get_all()
 {
     return Database::get('db')
         ->table('items')
@@ -28,7 +26,8 @@ function get_everything()
             'items.content',
             'items.language',
             'feeds.site_url',
-            'feeds.title AS feed_title'
+            'feeds.title AS feed_title',
+            'feeds.rtl'
         )
         ->join('feeds', 'id', 'feed_id')
         ->in('status', array('read', 'unread'))
@@ -37,7 +36,7 @@ function get_everything()
 }
 
 // Get everthing since date (timestamp)
-function get_everything_since($timestamp)
+function get_all_since($timestamp)
 {
     return Database::get('db')
         ->table('items')
@@ -54,7 +53,8 @@ function get_everything_since($timestamp)
             'items.content',
             'items.language',
             'feeds.site_url',
-            'feeds.title AS feed_title'
+            'feeds.title AS feed_title',
+            'feeds.rtl'
         )
         ->join('feeds', 'id', 'feed_id')
         ->in('status', array('read', 'unread'))
@@ -63,18 +63,33 @@ function get_everything_since($timestamp)
         ->findAll();
 }
 
+function get_latest_feeds_items()
+{
+    return Database::get('db')
+        ->table('feeds')
+        ->columns(
+            'feeds.id',
+            'MAX(items.updated) as updated',
+            'items.status'
+        )
+        ->join('items', 'feed_id', 'id')
+        ->groupBy('feeds.id')
+        ->orderBy('feeds.id')
+        ->findAll();
+}
+
 // Get a list of [item_id => status,...]
 function get_all_status()
 {
     return Database::get('db')
-        ->table('items')
+        ->hashtable('items')
         ->in('status', array('read', 'unread'))
         ->orderBy('updated', 'desc')
-        ->listing('id', 'status');
+        ->getAll('id', 'status');
 }
 
 // Get all items by status
-function get_all($status, $offset = null, $limit = null, $order_column = 'updated', $order_direction = 'desc')
+function get_all_by_status($status, $offset = null, $limit = null, $order_column = 'updated', $order_direction = 'desc')
 {
     return Database::get('db')
         ->table('items')
@@ -91,7 +106,8 @@ function get_all($status, $offset = null, $limit = null, $order_column = 'update
             'items.content',
             'items.language',
             'feeds.site_url',
-            'feeds.title AS feed_title'
+            'feeds.title AS feed_title',
+            'feeds.rtl'
         )
         ->join('feeds', 'id', 'feed_id')
         ->eq('status', $status)
@@ -138,7 +154,8 @@ function get_bookmarks($offset = null, $limit = null)
             'items.feed_id',
             'items.language',
             'feeds.site_url',
-            'feeds.title AS feed_title'
+            'feeds.title AS feed_title',
+            'feeds.rtl'
         )
         ->join('feeds', 'id', 'feed_id')
         ->in('status', array('read', 'unread'))
@@ -176,7 +193,8 @@ function get_all_by_feed($feed_id, $offset = null, $limit = null, $order_column 
             'items.content',
             'items.bookmark',
             'items.language',
-            'feeds.site_url'
+            'feeds.site_url',
+            'feeds.rtl'
         )
         ->join('feeds', 'id', 'feed_id')
         ->in('status', array('unread', 'read'))
@@ -297,42 +315,15 @@ function set_status($status, array $items)
 // Enable/disable bookmark flag
 function set_bookmark_value($id, $value)
 {
+    if ($value == 1) {
+        Service\push($id);
+    }
+
     return Database::get('db')
         ->table('items')
         ->eq('id', $id)
         ->in('status', array('read', 'unread'))
         ->save(array('bookmark' => $value));
-}
-
-// Swap item status read <-> unread
-function switch_status($id)
-{
-    $item = Database::get('db')
-        ->table('items')
-        ->columns('status')
-        ->eq('id', $id)
-        ->findOne();
-
-    if ($item['status'] == 'unread') {
-
-        Database::get('db')
-            ->table('items')
-            ->eq('id', $id)
-            ->save(array('status' => 'read'));
-
-        return 'read';
-    }
-    else {
-
-        Database::get('db')
-            ->table('items')
-            ->eq('id', $id)
-            ->save(array('status' => 'unread'));
-
-        return 'unread';
-    }
-
-    return '';
 }
 
 // Mark all unread items as read
@@ -354,18 +345,6 @@ function mark_all_as_removed()
         ->save(array('status' => 'removed', 'content' => ''));
 }
 
-// Mark only specified items as read
-function mark_items_as_read(array $items_id)
-{
-    Database::get('db')->startTransaction();
-
-    foreach ($items_id as $id) {
-        set_read($id);
-    }
-
-    Database::get('db')->closeTransaction();
-}
-
 // Mark all items of a feed as read
 function mark_feed_as_read($feed_id)
 {
@@ -377,7 +356,7 @@ function mark_feed_as_read($feed_id)
 }
 
 // Mark all read items to removed after X days
-function autoflush()
+function autoflush_read()
 {
     $autoflush = (int) Config\get('autoflush');
 
@@ -402,8 +381,25 @@ function autoflush()
     }
 }
 
+// Mark all unread items to removed after X days
+function autoflush_unread()
+{
+    $autoflush = (int) Config\get('autoflush_unread');
+
+    if ($autoflush > 0) {
+
+        // Mark read items removed after X days
+        Database::get('db')
+            ->table('items')
+            ->eq('bookmark', 0)
+            ->eq('status', 'unread')
+            ->lt('updated', strtotime('-'.$autoflush.'day'))
+            ->save(array('status' => 'removed', 'content' => ''));
+    }
+}
+
 // Update all items
-function update_all($feed_id, array $items, $enable_grabber = false)
+function update_all($feed_id, array $items)
 {
     $nocontent = (bool) Config\get('nocontent');
 
@@ -414,12 +410,12 @@ function update_all($feed_id, array $items, $enable_grabber = false)
 
     foreach ($items as $item) {
 
-        Logging::setMessage('Item => '.$item->getId().' '.$item->getUrl());
+        Logger::setMessage('Item => '.$item->getId().' '.$item->getUrl());
 
         // Item parsed correctly?
         if ($item->getId() && $item->getUrl()) {
 
-            Logging::setMessage('Item parsed correctly');
+            Logger::setMessage('Item parsed correctly');
 
             // Get item record in database, if any
             $itemrec = $db
@@ -431,17 +427,13 @@ function update_all($feed_id, array $items, $enable_grabber = false)
             // Insert a new item
             if ($itemrec === null) {
 
-                Logging::setMessage('Item added to the database');
-
-                if ($enable_grabber && ! $nocontent && ! $item->getContent()) {
-                    $item->content = download_content_url($item->getUrl());
-                }
+                Logger::setMessage('Item added to the database');
 
                 $db->table('items')->save(array(
                     'id' => $item->getId(),
                     'title' => $item->getTitle(),
                     'url' => $item->getUrl(),
-                    'updated' => $item->getDate(),
+                    'updated' => $item->getDate()->getTimestamp(),
                     'author' => $item->getAuthor(),
                     'content' => $nocontent ? '' : $item->getContent(),
                     'status' => 'unread',
@@ -453,7 +445,7 @@ function update_all($feed_id, array $items, $enable_grabber = false)
             }
             else if (! $itemrec['enclosure'] && $item->getEnclosureUrl()) {
 
-                Logging::setMessage('Update item enclosure');
+                Logger::setMessage('Update item enclosure');
 
                 $db->table('items')->eq('id', $item->getId())->save(array(
                     'status' => 'unread',
@@ -462,7 +454,7 @@ function update_all($feed_id, array $items, $enable_grabber = false)
                 ));
             }
             else {
-                Logging::setMessage('Item already in the database');
+                Logger::setMessage('Item already in the database');
             }
 
             // Items inside this feed
@@ -502,7 +494,7 @@ function cleanup($feed_id, array $items_in_feed)
             if (! empty($items_to_remove)) {
 
                 $nb_items = count($items_to_remove);
-                Logging::setMessage('There is '.$nb_items.' items to remove');
+                Logger::setMessage('There is '.$nb_items.' items to remove');
 
                 // Handle the case when there is a huge number of items to remove
                 // Sqlite have a limit of 1000 sql variables by default
@@ -528,21 +520,12 @@ function download_content_url($url)
 {
     $content = '';
 
-    $grabber = new Grabber($url);
-    $grabber->setConfig(Config\get_reader_config());
-    $grabber->download();
+    $grabber = new Scraper(Config\get_reader_config());
+    $grabber->setUrl($url);
+    $grabber->execute();
 
-    if ($grabber->parse()) {
-        $content = $grabber->getcontent();
-    }
-    else {
-        $content = download_content_readability($grabber->getRawContent(), $url);
-    }
-
-    if (! empty($content)) {
-        $filter = new Filter($content, $url);
-        $filter->setConfig(Config\get_reader_config());
-        $content = $filter->execute();
+    if ($grabber->hasRelevantContent()) {
+        $content = $grabber->getFilteredContent();
     }
 
     return $content;
@@ -579,19 +562,4 @@ function download_content_id($item_id)
         'result' => false,
         'content' => ''
     );
-}
-
-// Download content with Readability PHP port
-function download_content_readability($content, $url)
-{
-    if (! empty($content)) {
-
-        $readability = new Readability($content, $url);
-
-        if ($readability->init()) {
-            return $readability->getContent()->innerHTML;
-        }
-    }
-
-    return '';
 }

@@ -17,7 +17,9 @@ else {
 }
 
 if (! empty($options['database'])) {
-    Model\Database\select($options['database']);
+    if (! Model\Database\select($options['database'])) {
+        die("Database ".$options['database']." not found\r\n");
+    }
 }
 
 $limit = ! empty($options['limit']) && ctype_digit($options['limit']) ? (int) $options['limit'] : Model\Feed\LIMIT_ALL;
@@ -31,5 +33,6 @@ if ($update_interval !== null && $call_interval !== null && $limit === Model\Fee
 }
 
 Model\Feed\refresh_all($limit);
-Model\Item\autoflush();
+Model\Item\autoflush_read();
+Model\Item\autoflush_unread();
 Model\Config\write_debug();

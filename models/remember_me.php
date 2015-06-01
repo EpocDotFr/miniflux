@@ -4,7 +4,6 @@ namespace Model\RememberMe;
 
 use PicoDb\Database;
 use Model\Config;
-use Model\User;
 use Model\Database as DatabaseModel;
 
 const TABLE = 'remember_me';
@@ -61,13 +60,12 @@ function authenticate()
             // Update the sequence
             write_cookie(
                 $record['token'],
-                update($record['token'], $record['sequence']),
+                update($record['token']),
                 $record['expiration']
             );
 
-            // Create the session
-            $_SESSION['user'] = User\get($record['username']);
-            $_SESSION['config'] = Config\get_all();
+            // mark user as sucessfull logged in
+            $_SESSION['loggedin'] = true;
 
             return true;
         }
@@ -94,26 +92,11 @@ function refresh()
             // Update the sequence
             write_cookie(
                 $record['token'],
-                update($record['token'], $record['sequence']),
+                update($record['token']),
                 $record['expiration']
             );
         }
     }
-}
-
-/**
- * Remove a session record
- *
- * @access public
- * @param  integer  $session_id   Session id
- * @return mixed
- */
-function remove($session_id)
-{
-    return Database::get('db')
-                ->table(TABLE)
-                ->eq('id', $session_id)
-                ->remove();
 }
 
 /**
@@ -128,13 +111,13 @@ function destroy()
 
     if ($credentials !== false) {
 
-        delete_cookie();
-
         Database::get('db')
              ->table(TABLE)
              ->eq('token', $credentials['token'])
              ->remove();
     }
+
+    delete_cookie();
 }
 
 /**
@@ -193,17 +176,15 @@ function cleanup()
  *
  * @access public
  * @param  string   $token        Session token
- * @param  string   $sequence     Sequence token
  * @return string
  */
-function update($token, $sequence)
+function update($token)
 {
     $new_sequence = Config\generate_token();
 
     Database::get('db')
          ->table(TABLE)
          ->eq('token', $token)
-         ->eq('sequence', $sequence)
          ->update(array('sequence' => $new_sequence));
 
     return $new_sequence;
@@ -233,7 +214,9 @@ function decode_cookie($value)
 {
     @list($database, $token, $sequence) = explode('|', $value);
 
-    DatabaseModel\select(base64_decode($database));
+    if (ENABLE_MULTIPLE_DB && ! DatabaseModel\select(base64_decode($database))) {
+        return false;
+    }
 
     return array(
         'token' => $token,
@@ -268,7 +251,7 @@ function write_cookie($token, $sequence, $expiration)
         $expiration,
         BASE_URL_DIRECTORY,
         null,
-        ! empty($_SERVER['HTTPS']),
+        \Helper\is_secure_connection(),
         true
     );
 }
@@ -301,7 +284,7 @@ function delete_cookie()
         time() - 3600,
         BASE_URL_DIRECTORY,
         null,
-        ! empty($_SERVER['HTTPS']),
+        \Helper\is_secure_connection(),
         true
     );
 }

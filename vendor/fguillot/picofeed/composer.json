@@ -1,0 +1,30 @@
+{
+    "name": "fguillot/picofeed",
+    "description": "Modern library to write or read feeds (RSS/Atom)",
+    "homepage": "http://fguillot.github.io/picoFeed",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Frédéric Guillot",
+            "homepage": "http://fredericguillot.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.0",
+        "ext-iconv": "*",
+        "ext-dom": "*",
+        "ext-xml": "*",
+        "ext-libxml": "*",
+        "ext-SimpleXML": "*"
+    },
+    "suggest": {
+        "ext-curl": "PicoFeed will use cURL if present"
+    },
+    "autoload": {
+        "psr-0": {"PicoFeed": "lib/"}
+    },
+    "bin" : [
+        "picofeed"
+    ]
+}

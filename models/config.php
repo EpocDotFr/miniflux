@@ -2,13 +2,14 @@
 
 namespace Model\Config;
 
+use Translator;
+use DirectoryIterator;
 use SimpleValidator\Validator;
 use SimpleValidator\Validators;
 use PicoDb\Database;
-use PicoFeed\Config as ReaderConfig;
-use PicoFeed\Logging;
+use PicoFeed\Config\Config as ReaderConfig;
+use PicoFeed\Logging\Logger;
 
-const DB_VERSION = 27;
 const HTTP_USER_AGENT = 'Miniflux (http://miniflux.net)';
 
 // Get PicoFeed config
@@ -17,16 +18,28 @@ function get_reader_config()
     $config = new ReaderConfig;
     $config->setTimezone(get('timezone'));
 
+    // Client
     $config->setClientTimeout(HTTP_TIMEOUT);
     $config->setClientUserAgent(HTTP_USER_AGENT);
-    $config->setGrabberUserAgent(HTTP_USER_AGENT);
 
+    // Grabber
+    $config->setGrabberRulesFolder(RULES_DIRECTORY);
+
+    // Proxy
     $config->setProxyHostname(PROXY_HOSTNAME);
     $config->setProxyPort(PROXY_PORT);
     $config->setProxyUsername(PROXY_USERNAME);
     $config->setProxyPassword(PROXY_PASSWORD);
 
+    // Filter
     $config->setFilterIframeWhitelist(get_iframe_whitelist());
+
+    if ((bool) get('debug_mode')) {
+        Logger::enable();
+    }
+
+    // Parser
+    $config->setParserHashAlgo('crc32b');
 
     return $config;
 }
@@ -34,7 +47,6 @@ function get_reader_config()
 function get_iframe_whitelist()
 {
     return array(
-        '//www.youtube.com',
         'http://www.youtube.com',
         'https://www.youtube.com',
         'http://player.vimeo.com',
@@ -47,54 +59,63 @@ function get_iframe_whitelist()
 // Send a debug message to the console
 function debug($line)
 {
-    Logging::setMessage($line);
+    Logger::setMessage($line);
     write_debug();
 }
 
 // Write PicoFeed debug output to a file
 function write_debug()
 {
-    if (DEBUG) {
-        file_put_contents(DEBUG_FILENAME, implode(PHP_EOL, Logging::getMessages()));
+    if ((bool) get('debug_mode')) {
+        file_put_contents(DEBUG_FILENAME, implode(PHP_EOL, Logger::getMessages()));
     }
 }
 
 // Get available timezone
 function get_timezones()
 {
-    $timezones = \timezone_identifiers_list();
+    $timezones = timezone_identifiers_list();
     return array_combine(array_values($timezones), $timezones);
+}
+
+// Returns true if the language is RTL
+function is_language_rtl()
+{
+    $languages = array(
+        'ar_AR'
+    );
+
+    return in_array(get('language'), $languages);
 }
 
 // Get all supported languages
 function get_languages()
 {
-    $languages = array(
-        'cs_CZ' => t('Czech'),
-        'de_DE' => t('German'),
-        'en_US' => t('English'),
-        'es_ES' => t('Spanish'),
-        'fr_FR' => t('French'),
-        'it_IT' => t('Italian'),
-        'pt_BR' => t('Portuguese'),
-        'zh_CN' => t('Simplified Chinese'),
+    return array(
+        'ar_AR' => 'عربي',
+        'cs_CZ' => 'Čeština',
+        'de_DE' => 'Deutsch',
+        'en_US' => 'English',
+        'es_ES' => 'Español',
+        'fr_FR' => 'Français',
+        'it_IT' => 'Italiano',
+        'pt_BR' => 'Português',
+        'zh_CN' => '简体中国',
+        'sr_RS' => 'српски',
+        'sr_RS@latin' => 'srpski',
     );
-
-    asort($languages);
-
-    return $languages;
 }
 
 // Get all skins
 function get_themes()
 {
     $themes = array(
-        'original' => t('Original')
+        'original' => t('Default')
     );
 
     if (file_exists(THEME_DIRECTORY)) {
 
-        $dir = new \DirectoryIterator(THEME_DIRECTORY);
+        $dir = new DirectoryIterator(THEME_DIRECTORY);
 
         foreach ($dir as $fileinfo) {
 
@@ -125,16 +146,28 @@ function get_display_mode()
 	);
 }
 
-// Autoflush choices for items
-function get_autoflush_options()
+// Autoflush choices for read items
+function get_autoflush_read_options()
 {
     return array(
         '0' => t('Never'),
         '-1' => t('Immediately'),
         '1' => t('After %d day', 1),
-        '5' => t('After %d days', 5),
-        '15' => t('After %d days', 15),
-        '30' => t('After %d days', 30)
+        '5' => t('After %d day', 5),
+        '15' => t('After %d day', 15),
+        '30' => t('After %d day', 30)
+    );
+}
+
+// Autoflush choices for unread items
+function get_autoflush_unread_options()
+{
+    return array(
+        '0' => t('Never'),
+        '15' => t('After %d day', 15),
+        '30' => t('After %d day', 30),
+        '45' => t('After %d day', 45),
+        '60' => t('After %d day', 60),
     );
 }
 
@@ -154,17 +187,54 @@ function get_paging_options()
 function get_nothing_to_read_redirections()
 {
     return array(
-        'feeds' => t('Subscription page'),
-        'history' => t('History page'),
-        'bookmarks' => t('Bookmark page'),
+        'feeds' => t('Subscriptions'),
+        'history' => t('History'),
+        'bookmarks' => t('Bookmarks'),
     );
+}
+
+// Create a CSRF token
+function generate_csrf()
+{
+    if (empty($_SESSION['csrf'])) {
+        $_SESSION['csrf'] = array();
+    }
+
+    $token = generate_token();
+    $_SESSION['csrf'][$token] = true;
+
+    return $token;
+}
+
+// Check CSRF token (form values)
+function check_csrf_values(array &$values)
+{
+    if (empty($values['csrf']) || ! isset($_SESSION['csrf'][$values['csrf']])) {
+        $values = array();
+    }
+    else {
+
+        unset($_SESSION['csrf'][$values['csrf']]);
+        unset($values['csrf']);
+    }
+}
+
+// Check CSRF token
+function check_csrf($token)
+{
+    if (isset($_SESSION['csrf'][$token])) {
+        unset($_SESSION['csrf'][$token]);
+        return true;
+    }
+
+    return false;
 }
 
 // Generate a token from /dev/urandom or with uniqid() if open_basedir is enabled
 function generate_token()
 {
     if (function_exists('openssl_random_pseudo_bytes')) {
-        return bin2hex(\openssl_random_pseudo_bytes(25));
+        return bin2hex(openssl_random_pseudo_bytes(25));
     }
     else if (ini_get('open_basedir') === '' && strtoupper(substr(PHP_OS, 0, 3)) !== 'WIN') {
         return hash('sha256', file_get_contents('/dev/urandom', false, null, 0, 30));
@@ -180,38 +250,17 @@ function new_tokens()
         'api_token' => generate_token(),
         'feed_token' => generate_token(),
         'bookmarklet_token' => generate_token(),
+        'fever_token' => substr(generate_token(), 0, 8),
     );
 
-    return Database::get('db')->table('config')->update($values);
-}
-
-// Save tokens for external authentication
-function save_auth_token($type, $value)
-{
-    return Database::get('db')
-        ->table('config')
-        ->update(array(
-            'auth_'.$type.'_token' => $value
-        ));
-}
-
-// Clear authentication tokens
-function remove_auth_token($type)
-{
-    Database::get('db')
-        ->table('config')
-        ->update(array(
-            'auth_'.$type.'_token' => ''
-        ));
-
-    $_SESSION['config'] = get_all();
+    return Database::get('db')->hashtable('settings')->put($values);
 }
 
 // Get a config value from the DB or from the session
 function get($name)
 {
     if (! isset($_SESSION)) {
-        return Database::get('db')->table('config')->findOneColumn($name);
+        return current(Database::get('db')->hashtable('settings')->get($name));
     }
     else {
 
@@ -230,27 +279,11 @@ function get($name)
 // Get all config parameters
 function get_all()
 {
-    return Database::get('db')
-        ->table('config')
-        ->columns(
-            'username',
-            'language',
-            'timezone',
-            'autoflush',
-            'nocontent',
-            'items_per_page',
-            'theme',
-            'api_token',
-            'feed_token',
-            'bookmarklet_token',
-            'auth_google_token',
-            'auth_mozilla_token',
-            'items_sorting_direction',
-            'items_display_mode',
-            'redirect_nothing_to_read',
-            'auto_update_url'
-        )
-        ->findOne();
+    $config = Database::get('db')->hashtable('settings')->get();
+
+    unset($config['password']);
+
+    return $config;
 }
 
 // Validation for edit action
@@ -260,9 +293,15 @@ function validate_modification(array $values)
         new Validators\Required('username', t('The user name is required')),
         new Validators\MaxLength('username', t('The maximum length is 50 characters'), 50),
         new Validators\Required('autoflush', t('Value required')),
+        new Validators\Required('autoflush_unread', t('Value required')),
         new Validators\Required('items_per_page', t('Value required')),
         new Validators\Integer('items_per_page', t('Must be an integer')),
         new Validators\Required('theme', t('Value required')),
+        new Validators\Integer('frontend_updatecheck_interval', t('Must be an integer')),
+        new Validators\Integer('debug_mode', t('Must be an integer')),
+        new Validators\Integer('nocontent', t('Must be an integer')),
+        new Validators\Integer('favicons', t('Must be an integer')),
+        new Validators\Integer('original_marks_read', t('Must be an integer')),
     );
 
     if (ENABLE_AUTO_UPDATE) {
@@ -289,25 +328,31 @@ function save(array $values)
 {
     // Update the password if needed
     if (! empty($values['password'])) {
-        $values['password'] = \password_hash($values['password'], PASSWORD_BCRYPT);
+        $values['password'] = password_hash($values['password'], PASSWORD_BCRYPT);
     } else {
         unset($values['password']);
     }
 
     unset($values['confirmation']);
 
-    // Reload configuration in session
-    $_SESSION['config'] = $values;
-
-    // Reload translations for flash session message
-    \Translator\load($values['language']);
-
     // If the user does not want content of feeds, remove it in previous ones
     if (isset($values['nocontent']) && (bool) $values['nocontent']) {
         Database::get('db')->table('items')->update(array('content' => ''));
     }
 
-    return Database::get('db')->table('config')->update($values);
+    if (Database::get('db')->hashtable('settings')->put($values)) {
+        reload();
+        return true;
+    }
+
+    return false;
+}
+
+// Reload the cache in session
+function reload()
+{
+    $_SESSION['config'] = get_all();
+    Translator\load(get('language'));
 }
 
 // Get the user agent of the connected user
